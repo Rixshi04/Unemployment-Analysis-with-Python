@@ -1,0 +1,61 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import stats
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+# Load your dataset
+data = pd.read_csv('unemployment_data.csv')
+
+# Display basic information about the dataset
+print(data.info())
+print(data.describe())
+print(data.head())
+
+# Check for missing values
+print(data.isnull().sum())
+
+# Fill or drop missing values
+data.fillna(method='ffill', inplace=True)
+
+# Exploratory Data Analysis (EDA)
+plt.figure(figsize=(10, 6))
+plt.plot(data['Date'], data['Unemployment Rate'], marker='o')
+plt.title('Unemployment Rate Over Time')
+plt.xlabel('Date')
+plt.ylabel('Unemployment Rate')
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(10, 6))
+plt.boxplot(data['Unemployment Rate'])
+plt.title('Box Plot of Unemployment Rate')
+plt.ylabel('Unemployment Rate')
+plt.grid(True)
+plt.show()
+
+# Perform a t-test
+mean_value = data['Unemployment Rate'].mean()
+t_stat, p_value = stats.ttest_1samp(data['Unemployment Rate'], popmean=mean_value)
+print(f'T-statistic: {t_stat}, P-value: {p_value}')
+
+# Prepare the data for modeling
+# Convert date to a numerical value if needed
+data['Date'] = pd.to_datetime(data['Date'])
+data['Date'] = data['Date'].map(pd.Timestamp.toordinal)
+
+X = data[['Date']]
+y = data['Unemployment Rate']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+# Build the model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Predict
+predictions = model.predict(X_test)
+
+# Evaluate the model
+print(f'R-squared: {model.score(X_test, y_test)}')
