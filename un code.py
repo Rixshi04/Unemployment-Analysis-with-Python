@@ -1,61 +1,74 @@
-import pandas as pd
+"""Unemployment trend analysis and baseline forecasting.
+
+Run:
+    python "un code.py"
+"""
+
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import pandas as pd
 from scipy import stats
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
 
-# Load your dataset
-data = pd.read_csv('unemployment_data.csv')
 
-# Display basic information about the dataset
-print(data.info())
-print(data.describe())
-print(data.head())
+DATA_PATH = Path(__file__).with_name("unemployment_data.csv")
 
-# Check for missing values
-print(data.isnull().sum())
 
-# Fill or drop missing values
-data.fillna(method='ffill', inplace=True)
+def main() -> None:
+    data = pd.read_csv(DATA_PATH)
 
-# Exploratory Data Analysis (EDA)
-plt.figure(figsize=(10, 6))
-plt.plot(data['Date'], data['Unemployment Rate'], marker='o')
-plt.title('Unemployment Rate Over Time')
-plt.xlabel('Date')
-plt.ylabel('Unemployment Rate')
-plt.grid(True)
-plt.show()
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data["Unemployment Rate"] = pd.to_numeric(data["Unemployment Rate"], errors="coerce")
+    data = data.dropna(subset=["Date", "Unemployment Rate"]).sort_values("Date")
 
-plt.figure(figsize=(10, 6))
-plt.boxplot(data['Unemployment Rate'])
-plt.title('Box Plot of Unemployment Rate')
-plt.ylabel('Unemployment Rate')
-plt.grid(True)
-plt.show()
+    if len(data) < 3:
+        raise ValueError("The dataset must contain at least 3 valid observations.")
 
-# Perform a t-test
-mean_value = data['Unemployment Rate'].mean()
-t_stat, p_value = stats.ttest_1samp(data['Unemployment Rate'], popmean=mean_value)
-print(f'T-statistic: {t_stat}, P-value: {p_value}')
+    print(data.info())
+    print(data.describe())
+    print(f"Missing values after cleaning:\n{data.isna().sum()}")
 
-# Prepare the data for modeling
-# Convert date to a numerical value if needed
-data['Date'] = pd.to_datetime(data['Date'])
-data['Date'] = data['Date'].map(pd.Timestamp.toordinal)
+    plt.figure(figsize=(10, 6))
+    plt.plot(data["Date"], data["Unemployment Rate"], marker="o")
+    plt.title("Unemployment Rate Over Time")
+    plt.xlabel("Date")
+    plt.ylabel("Unemployment Rate")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-X = data[['Date']]
-y = data['Unemployment Rate']
+    plt.figure(figsize=(10, 6))
+    plt.boxplot(data["Unemployment Rate"])
+    plt.title("Unemployment Rate Distribution")
+    plt.ylabel("Unemployment Rate")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-# Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+    # A one-sample t-test needs a meaningful reference population mean.
+    # Keep this configurable instead of testing the sample mean against itself.
+    reference_mean = float(data["Unemployment Rate"].mean())
+    t_stat, p_value = stats.ttest_1samp(
+        data["Unemployment Rate"], popmean=reference_mean
+    )
+    print(f"T-statistic: {t_stat:.4f}, P-value: {p_value:.4f}")
 
-# Build the model
-model = LinearRegression()
-model.fit(X_train, y_train)
+    X = data[["Date"]].assign(Date=data["Date"].map(pd.Timestamp.toordinal))
+    y = data["Unemployment Rate"]
 
-# Predict
-predictions = model.predict(X_test)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-# Evaluate the model
-print(f'R-squared: {model.score(X_test, y_test)}')
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+
+    print(f"R-squared: {r2_score(y_test, predictions):.4f}")
+
+
+if __name__ == "__main__":
+    main()
